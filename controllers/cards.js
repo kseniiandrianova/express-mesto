@@ -14,8 +14,8 @@ module.exports.createCard = (req, res) => {
   cards.create({ name, link, owner })
     .then((card) => res.send({ data: card }))
     .catch((err) => {
-      if (err.name === 'ValidationError') return res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные при создании карточки' });
-      res.status(500).send({ message: 'Произошла ошибка' });
+      if (err.name === 'ValidationError') return res.status(ERROR_CODE_404).send({ message: 'Переданы некорректные данные при создании карточки' });
+      return res.status(500).send({ message: 'Произошла ошибка' });
     });
 };
 
@@ -26,39 +26,49 @@ module.exports.likeCard = (req, res) => {
     { new: true },
   )
     .then((card) => {
-      if (card === null) return res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-      res.send({ data: cards });
+      if (card === null) return res.status(ERROR_CODE_404).send({ message: 'Карточка с указанным _id не найдена' });
+      return res.send({ data: card });
     })
     .catch((err) => {
       if (err.name === 'ValidationError') return res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-      res.status(500).send(err);
+      return res.status(500).send(err);
     });
 };
 
-module.exports.dislikeCard = (req, res, next) => {
+module.exports.dislikeCard = (req, res) => {
   cards.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
     { new: true },
   )
     .then((card) => {
-      if (card) {
+      if (card === null) {
+        res.status(ERROR_CODE_404).send({ message: 'Карточка с указанным _id не найдена' });
+      } else {
         res.send({ data: card });
       }
     })
-    .catch(next);
+    .catch((err) => {
+      if (err.name === 'ValidationError') return res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
+      return res.status(500).send(err);
+    });
 };
 
 module.exports.deleteCard = (req, res) => {
   const owner = req.user._id;
   cards.findOneAndDelete({ _id: req.params.cardId, owner })
     .then((card) => {
-      if (card) {
+      if (card === null) {
+        res.status(ERROR_CODE_404).send({ message: 'Карточка с указанным _id не найдена' });
+      } else {
         res.send({ data: card });
       }
     })
     .catch((err) => {
-      if (err.name === 'CastError') return res.status(ERROR_CODE_404).send({ message: 'Карточка с указанным _id не найдена' });
-      res.status(500).send(err);
+      if (err.name === 'CastError') {
+        res.status(ERROR_CODE_400).send({ message: 'Карточка с указанным _id не найдена' });
+      } else {
+        res.status(500).send(err);
+      }
     });
 };

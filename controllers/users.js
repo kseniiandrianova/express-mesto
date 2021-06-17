@@ -11,16 +11,18 @@ module.exports.getUsers = (req, res) => {
 module.exports.getUser = (req, res) => {
   const { userId } = req.params;
   return users.findById(userId)
+    .orFail(new Error('NotValidId'))
     .then((user) => {
-      if (user) {
-        return res.status(200).send({
-          name: user.name, about: user.about, avatar: user.avatar, _id: user._id,
-        });
-      }
-      return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+      res.status(200).send({
+        name: user.name, about: user.about, avatar: user.avatar, _id: user._id,
+      });
     })
-    .catch(() => {
-      res.status(500).send({ message: 'Произошла ошибка' });
+    .catch((err) => {
+      if (err.message === 'NotValidId') {
+        res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
+      } else {
+        res.status(500).send({ message: 'Произошла ошибка' });
+      }
     });
 };
 
@@ -36,7 +38,7 @@ module.exports.createUser = (req, res) => {
 module.exports.updateProfile = (req, res) => {
   const { name, about } = req.body;
   const owner = req.user._id;
-  users.findByIdAndUpdate(owner, { name, about }, { runValidators: true })
+  users.findByIdAndUpdate(owner, { name, about }, { runValidators: true }, { new: true })
     .then((user) => {
       if (user) { return res.status(200).send({ data: user }); }
       return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
@@ -49,7 +51,7 @@ module.exports.updateProfile = (req, res) => {
 module.exports.updateAvatar = (req, res) => {
   const { avatar } = req.body;
   const owner = req.user._id;
-  users.findByIdAndUpdate(owner, { avatar }, { runValidators: true })
+  users.findByIdAndUpdate(owner, { avatar }, { runValidators: true }, { new: true })
     .then((user) => {
       if (user) { return res.status(200).send({ data: user }); }
       return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });

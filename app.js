@@ -1,6 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
+const helmet = require('helmet');
 
 const routesUser = require('./routes/users');
 const routesCards = require('./routes/cards');
@@ -28,5 +29,7 @@ app.use((req, res, next) => {
 
 app.use(routesUser);
 app.use(routesCards);
+
+app.disable('x-powered-by');
 
 app.listen(PORT);
