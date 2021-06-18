@@ -30,8 +30,11 @@ module.exports.likeCard = (req, res) => {
       return res.send({ data: card });
     })
     .catch((err) => {
-      if (err.name === 'ValidationError') return res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-      return res.status(500).send(err);
+      if (err.name === 'CastError') {
+        res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
+      } else {
+        res.status(500).send(err);
+      }
     });
 };
 
