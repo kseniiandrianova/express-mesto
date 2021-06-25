@@ -22,28 +22,27 @@ module.exports.getUsers = (req, res, next) => {
     });
 };
 module.exports.getUser = (req, res, next) => {
-  const { userId } = req.params;
-  return users.findById(userId)
-    .orFail(new Error('NotValidId'))
+  const { _id } = req.user;
+  return users.findOne({ _id })
     .then((user) => {
-      res.status(200).send({
-        name: user.name, about: user.about, avatar: user.avatar, _id: user._id,
-      });
+      if (!user) {
+        throw new NotFoundError('Нет пользователя с таким id');
+      }
+      res.status(200).send(user);
     })
     .catch((err) => {
-      if (err.name === 'CastError') {
-        next(new BadRequestError('Переданы некорректный данные'));
-      } else if (err.message === 'NotValidId') {
+      if (err.message === 'NotValidId') {
         next(new NotFoundError('Нет пользователя с таким id'));
-      } else {
-        res.status(500).send({ message: 'Произошла ошибка' });
       }
+      if (err.kind === 'ObjectId') {
+        next(new BadRequestError('Переданы некорректный данные'));
+      }
+      next(err);
     });
 };
 
 module.exports.getUserId = (req, res, next) => {
-  users.findById(req.params.id)
-    .orFail(new Error('NotValidId'))
+  users.findById(req.user._id)
     .then((user) => res.status(200).send(user))
     .catch((err) => {
       if (err.message === 'NotValidId') {
@@ -93,29 +92,24 @@ module.exports.createUser = (req, res, next) => {
 module.exports.updateProfile = (req, res, next) => {
   const { name, about } = req.body;
   const owner = req.user._id;
-  users.findByIdAndUpdate(owner, { name, about }, { runValidators: true }, { new: true })
-    .then((user) => {
-      if (user) { return res.status(200).send({ data: user }); }
-      return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
-    })
+  users.findByIdAndUpdate(owner, { name, about }, { runValidators: true, new: true })
+    .then((user) => res.status(200).send({ data: user }))
     .catch((err) => {
       if (err.message === 'NotValidId') {
         next(new NotFoundError('Нет пользователя с таким id'));
       }
-      if (err.name === 'CastError') {
+      if (err.name === 'ValidationError') {
         next(new BadRequestError('Переданы некорректный данные'));
       }
+      next(err);
     });
 };
 
 module.exports.updateAvatar = (req, res, next) => {
   const { avatar } = req.body;
   const owner = req.user._id;
-  users.findByIdAndUpdate(owner, { avatar }, { runValidators: true }, { new: true })
-    .then((user) => {
-      if (user) { return res.status(200).send({ data: user }); }
-      return res.status(404).send({ message: 'Пользователь по указанному _id не найден.' });
-    })
+  users.findByIdAndUpdate(owner, { avatar }, { runValidators: true, new: true })
+    .then((user) => res.status(200).send({ data: user }))
     .catch((err) => {
       if (err.message === 'NotValidId') {
         next(new NotFoundError('Нет пользователя с таким id'));
@@ -131,7 +125,7 @@ module.exports.login = (req, res, next) => {
   const { email, password } = req.body;
   return users.findUserByCredentials(email, password)
     .then((user) => {
-      const token = jwt.sign({ _id: user._id }, 'super-strong-secret', { expiresIn: '7d' });
+      const token = jwt.sign({ _id: user._id }, 'secret-key', { expiresIn: '7d' });
       res.cookie('jwt', token, {
         httpOnly: true,
         sameSite: true,

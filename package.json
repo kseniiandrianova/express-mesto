@@ -14,9 +14,6 @@
     "helmet": "^4.6.0",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.12.13",
-    "react": "^17.0.2",
-    "react-dom": "^17.0.2",
-    "react-scripts": "4.0.3",
     "validator": "^13.6.0",
     "vue": "^2.6.14",
     "web-vitals": "^1.1.2"
@@ -42,5 +39,16 @@
     "eslint-plugin-nuxt": "^2.0.0",
     "eslint-plugin-vue": "^7.11.1",
     "nodemon": "^2.0.7"
-  }
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kseniiandrianova/express-mesto.git"
+  },
+  "author": "kseniiandrianova",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/kseniiandrianova/express-mesto/issues"
+  },
+  "homepage": "https://github.com/kseniiandrianova/express-mesto#readme"
 }

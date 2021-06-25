@@ -1,77 +1,83 @@
 const cards = require('../models/card');
+const NotFoundError = require('../errors/NotFoundError');
+const ForbiddenError = require('../errors/ForbiddenError');
+const BadRequestError = require('../errors/BadRequestError');
 
-const ERROR_CODE_400 = 400;
-const ERROR_CODE_404 = 404;
-
-module.exports.getCard = (req, res) => {
+module.exports.getCard = (req, res, next) => {
   cards.find({})
     .then((card) => res.send({ data: card }))
-    .catch(() => res.status(500).send({ message: 'Произошла ошибка' }));
+    .catch(next);
 };
 
-module.exports.createCard = (req, res) => {
+module.exports.createCard = (req, res, next) => {
   const { name, link, owner = req.user._id } = req.body;
   cards.create({ name, link, owner })
     .then((card) => res.send({ data: card }))
     .catch((err) => {
-      if (err.name === 'ValidationError') return res.status(ERROR_CODE_404).send({ message: 'Переданы некорректные данные при создании карточки' });
-      return res.status(500).send({ message: 'Произошла ошибка' });
+      if (err.name === 'ValidationError') {
+        next(new BadRequestError('Переданы некорректный данные'));
+      }
+      next(err);
     });
 };
 
-module.exports.likeCard = (req, res) => {
+module.exports.likeCard = (req, res, next) => {
   cards.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } },
     { new: true },
   )
-    .then((card) => {
-      if (card === null) return res.status(ERROR_CODE_404).send({ message: 'Карточка с указанным _id не найдена' });
-      return res.send({ data: card });
-    })
+    .then((card) => res.status(200).send({ data: card }))
     .catch((err) => {
-      if (err.name === 'CastError') {
-        res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-      } else {
-        res.status(500).send(err);
+      if (err.message === 'NotValidId') {
+        next(new NotFoundError('Карточка с указанным _id не найдена'));
       }
+      if (err.kind === 'ObjectId') {
+        next(new BadRequestError('Невалидный id'));
+      }
+      next(err);
     });
 };
 
-module.exports.dislikeCard = (req, res) => {
+module.exports.dislikeCard = (req, res, next) => {
   cards.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } },
     { new: true },
   )
     .then((card) => {
-      if (card === null) {
-        res.status(ERROR_CODE_404).send({ message: 'Карточка с указанным _id не найдена' });
-      } else {
+      if (card) {
         res.send({ data: card });
       }
     })
     .catch((err) => {
-      if (err.name === 'ValidationError') return res.status(ERROR_CODE_400).send({ message: 'Переданы некорректные данные для постановки/снятии лайка' });
-      return res.status(500).send(err);
+      if (err.message === 'NotValidId') {
+        next(new NotFoundError('Карточка с указанным _id не найдена'));
+      }
+      if (err.kind === 'ObjectId') {
+        next(new BadRequestError('Невалидный id'));
+      }
+      next(err);
     });
 };
 
-module.exports.deleteCard = (req, res) => {
-  const owner = req.user._id;
-  cards.findOneAndDelete({ _id: req.params.cardId, owner })
+module.exports.deleteCard = (req, res, next) => {
+  cards.findById({ _id: req.params.cardId })
+    .orFail(new Error('NotValidId'))
     .then((card) => {
-      if (card === null) {
-        res.status(ERROR_CODE_404).send({ message: 'Карточка с указанным _id не найдена' });
-      } else {
-        res.send({ data: card });
+      if (req.user._id.toString() === card.owner.toString()) {
+        card.remove();
+        res.status(200).send({ message: 'Карточка удалена' });
       }
+      throw new ForbiddenError('Нельзя удалять чужую карточку');
     })
     .catch((err) => {
-      if (err.name === 'CastError') {
-        res.status(ERROR_CODE_400).send({ message: 'Карточка с указанным _id не найдена' });
-      } else {
-        res.status(500).send(err);
+      if (err.message === 'NotValidId') {
+        next(new NotFoundError('Карточка с указанным _id не найдена'));
       }
+      if (err.kind === 'ObjectId') {
+        next(new BadRequestError('Невалидный id'));
+      }
+      next(err);
     });
 };
