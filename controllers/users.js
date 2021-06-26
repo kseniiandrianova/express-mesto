@@ -42,7 +42,8 @@ module.exports.getUser = (req, res, next) => {
 };
 
 module.exports.getUserId = (req, res, next) => {
-  users.findById(req.user._id)
+  users.findById(req.params.id)
+    .orFail(new Error('NotValidId'))
     .then((user) => res.status(200).send(user))
     .catch((err) => {
       if (err.message === 'NotValidId') {
